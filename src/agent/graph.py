@@ -1,14 +1,15 @@
 from langchain_groq import ChatGroq
-from dotenv import load_dotenv
+from dotenv import load_dotenv,find_dotenv
 from langgraph.graph import StateGraph,START,END
-from langchain_core.load import load
 from langchain_core.prompts import ChatPromptTemplate
-from pathlib import Path
-import json
+import os
 
 from src.agent.schemas import StateSchema,SQLSchema
 
-load_dotenv()
+load_dotenv(find_dotenv())
+key=os.getenv("GROQ_API_KEY")
+if not key:
+    raise ValueError("API Key dosnot exist")
 
 model=ChatGroq(model="llama-3.3-70b-versatile",temperature=0)
 model2=model.with_structured_output(SQLSchema,method="json_mode")
