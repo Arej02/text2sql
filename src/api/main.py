@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from sqlalchemy import create_engine,inspect
 from dotenv import load_dotenv,find_dotenv
+from src.api.schemas import InputSchema,OutputSchema
+from src.agent.graph import text_to_sql
 import os
 
 # Setting up the environment variables:
@@ -43,6 +45,15 @@ def get_schema():
         new_dict[col]=new_list
     return new_dict
 
+# Convert the natural language to SQL endpoint:
+@app.post("/convert")
+def convert(question:InputSchema):
+    result=text_to_sql(question.question)
+
+    return {
+        "Question":question.question,
+        "SQL Query":result["sql"]
+    }
 
 
 
