@@ -1,7 +1,8 @@
 from pydantic import BaseModel,Field
-from typing import TypedDict,Annotated
+from typing import TypedDict,Annotated,List
 
 class StateSchema(TypedDict):
+    schema:dict[str,List[str]]
     question:str
     max_iteration:int
 

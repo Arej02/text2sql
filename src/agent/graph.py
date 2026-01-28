@@ -4,16 +4,30 @@ from langgraph.graph import StateGraph,START,END
 from langchain_core.prompts import ChatPromptTemplate
 import os
 from src.agent.schemas import StateSchema,SQLSchema
+from sqlalchemy import create_engine
+from src.database.schemas import schema_table
 
 load_dotenv(find_dotenv())
 key=os.getenv("GROQ_API_KEY")
 if not key:
     raise ValueError("API Key dosnot exist")
 
+db_key=os.getenv("DATABASE_URL")
+if not db_key:
+    raise ValueError("Database Key dosnot exist")
+
+engine=create_engine(db_key)
+
 model=ChatGroq(model="llama-3.3-70b-versatile",temperature=0)
 model2=model.with_structured_output(SQLSchema)
 
 def creat_sql_graph():
+
+    def load_schema(state:StateSchema)->StateSchema:
+        return {
+            "schema":schema_table(engine)
+        }
+
     def sql_generator(state:StateSchema)->StateSchema:
         sys_inst1="""
         You are an SQL expert. Given a schema and a natural question you will return ONLY a valid JSON object with the following keys:
@@ -31,11 +45,12 @@ def creat_sql_graph():
             1. You must only return SELECT statement
             2. DO not add any extra explanation,comments or markdowns
             3. Use only the schema that is provided.
+            Schema:{schema}
             Question:{user_question}""")
             ])
         
         chain=prompt | model2
-        response=chain.invoke({"user_question":state["question"]})
+        response=chain.invoke({"user_question":state["question"],"schema":state["schema"]})
 
         return {
             "sql":response.sql,
@@ -44,9 +59,11 @@ def creat_sql_graph():
         }
     graph=StateGraph(StateSchema)
 
+    graph.add_node('load_schema',load_schema)
     graph.add_node('sql_generator',sql_generator)
 
-    graph.add_edge(START,'sql_generator')
+    graph.add_edge(START,'load_schema')
+    graph.add_edge('load_schema','sql_generator')
     graph.add_edge('sql_generator',END)
 
     workflow=graph.compile()
