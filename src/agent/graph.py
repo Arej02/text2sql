@@ -4,6 +4,7 @@ from langgraph.graph import StateGraph,START,END
 from langchain_core.prompts import ChatPromptTemplate
 import os
 from src.agent.schemas import StateSchema,SQLSchema
+from src.agent.guardrail import validate_sql
 from sqlalchemy import create_engine
 from src.database.schemas import schema_table
 
@@ -32,9 +33,10 @@ def creat_sql_graph():
         sys_inst1="""
         You are an SQL expert. Given a schema and a natural question you will return ONLY a valid JSON object with the following keys:
         {{
-        "sql":"The optimized SQL query for the question",
+        "sql":"The optimized SELECT SQL query — use empty string \"\" if the question cannot be answered with the schema",
         "confidence_score":"A float number between 0 to 1 regarding how confident you are if the query will work.",
-        "feedback":"Any feedback about the query or the question"
+        "feedback":"Any feedback about the query or the question",
+        "is_answerable": true or false
         }}
         """
 
@@ -43,17 +45,42 @@ def creat_sql_graph():
             ("human","""
             ----------Rule-----------
             1. You must only return SELECT statement
-            2. DO not add any extra explanation,comments or markdowns
+            2. Do not add any extra explanation,comments or markdowns
             3. Use only the schema that is provided.
+            4. If the question:
+                - is not about retrieving data from this schema
+                - asks for general knowledge, math, opinions, code, jokes, etc.
+                - requires information not present in the schema
+                - is vague / ambiguous / off-topic
+                → MUST set "is_answerable": false, "sql": "", confidence_score low (≤ 0.2), and explain clearly in feedback
+             5. Never return null for sql only use "" instead
             Schema:{schema}
             Question:{user_question}""")
             ])
         
         chain=prompt | model2
         response=chain.invoke({"user_question":state["question"],"schema":state["schema"]})
-
+        try:
+            validated_query = validate_sql(response.sql)
+        except ValueError as e:
+            return {
+                **state,
+                "sql":"",
+                "confidence_score":0.0,
+                "feedback":f"Invalid SQL generated: {str(e)}"
+            }
+        
+        if not response.is_answerable or not response.sql.strip():
+            return {
+                **state,
+                "sql":"",
+                "confidence_score":0.0,
+                "feedback":"Question cannot be answered with the schema"
+            }
+        
         return {
-            "sql":response.sql,
+            **state,
+            "sql":validated_query,
             "confidence_score":response.confidence_score,
             "feedback":response.feedback
         }
