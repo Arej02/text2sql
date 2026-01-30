@@ -52,7 +52,8 @@ def convert(question:InputSchema):
 
     return {
         "Question":question.question,
-        "SQL Query":result["sql"]
+        "SQL Query":result["sql"],
+        "Feedback":result["feedback"]
     }
 
 
