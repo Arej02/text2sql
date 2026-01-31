@@ -2,11 +2,14 @@ from langchain_groq import ChatGroq
 from dotenv import load_dotenv,find_dotenv
 from langgraph.graph import StateGraph,START,END
 from langchain_core.prompts import ChatPromptTemplate
-import os
 from src.agent.schemas import StateSchema,SQLSchema
 from src.agent.guardrail import validate_sql
 from sqlalchemy import create_engine
 from src.database.schemas import schema_table
+from src.database.db_connection import query_db
+from pathlib import Path
+import os
+import json
 
 load_dotenv(find_dotenv())
 key=os.getenv("GROQ_API_KEY")
@@ -22,7 +25,14 @@ engine=create_engine(db_key)
 model=ChatGroq(model="llama-3.3-70b-versatile",temperature=0)
 model2=model.with_structured_output(SQLSchema)
 
-def creat_sql_graph():
+BASE=Path(__file__).resolve().parent.parent.parent
+FILE_PATH=BASE/"data"/"table_schema"
+
+def create_sql_graph():
+    with open(FILE_PATH,'w',encoding="utf-8") as f:
+        data=schema_table(engine)
+        json.dump(data,f,indent=2)
+        
 
     def load_schema(state:StateSchema)->StateSchema:
         return {
@@ -84,26 +94,44 @@ def creat_sql_graph():
             "confidence_score":response.confidence_score,
             "feedback":response.feedback
         }
+    
+    def route_after_generation(state:StateSchema):
+        if state["sql"]:
+            return "execute_query"
+        else:
+            return END
+        
+    def execute_query(state:StateSchema)->StateSchema:
+        queried_rows=query_db(state["sql"],engine)
+
+        return {
+            **state,
+            "rows":queried_rows
+        }
+
     graph=StateGraph(StateSchema)
 
     graph.add_node('load_schema',load_schema)
     graph.add_node('sql_generator',sql_generator)
+    graph.add_node('execute_query',execute_query)
 
     graph.add_edge(START,'load_schema')
     graph.add_edge('load_schema','sql_generator')
-    graph.add_edge('sql_generator',END)
+    graph.add_conditional_edges('sql_generator',route_after_generation,{"execute_query":"execute_query",END:END})
+    graph.add_edge('execute_query',END)
 
     workflow=graph.compile()
 
     return workflow
 
-sql_workflow=creat_sql_graph()
+sql_workflow=create_sql_graph()
 
 def text_to_sql(user_question):
     result=sql_workflow.invoke({"question":user_question})
     return {
         "sql":result["sql"],
         "confidence_score":result["confidence_score"],
-        "feedback":result["feedback"]
+        "feedback":result["feedback"],
+        "rows":result.get('rows',[])
     }
 
