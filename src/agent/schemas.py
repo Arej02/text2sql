@@ -1,11 +1,13 @@
 from pydantic import BaseModel,Field
 from typing import TypedDict,Annotated,List
+from langgraph.graph.message import BaseMessage,add_messages
 
 class StateSchema(TypedDict):
     schema:dict[str,List[str]]
     question:str
     max_iteration:int=3
     is_answerable:bool
+    messages:Annotated[List[BaseMessage],add_messages]
 
     sql:str
     confidence_score:float

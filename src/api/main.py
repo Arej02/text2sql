@@ -47,16 +47,23 @@ def get_schema():
 
 # Convert the natural language to SQL endpoint:
 @app.post("/convert")
-def convert(question:InputSchema):
-    result=text_to_sql(question.question)
+def convert_question(input_data:InputSchema):
+    
+    result=text_to_sql(input_data.question,input_data.thread_id)
+
+    formatted_messages=[{
+        "role":"user" if msg.type=="human" else "assistant",
+        "content":msg.content
+    } for msg in result["messages"]]
 
     return {
-        "Question":question.question,
-        "SQL Query":result["sql"],
+        "Question":input_data.question,
+        "SQL_Query":result["sql"],
         "Feedback":result["feedback"],
-        "Rows Count":len(result["rows"]),
-        "Rows":result["rows"]
-    }
+        "Rows_Count":len(result["rows"]),
+        "Rows":result["rows"],
+        "Messages":formatted_messages
+        }
 
 
 
