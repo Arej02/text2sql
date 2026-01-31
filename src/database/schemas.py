@@ -1,18 +1,17 @@
 from sqlalchemy import inspect
 
-# Returns the schema of all the tables as a dictionary
 def schema_table(engine):
     insp=inspect(engine)
     table_names=insp.get_table_names() 
-    features=insp.get_columns(table_names[0]) 
-    new_dict={}
-    for table in table_names:
-        new_list=[]
-        for col in features:
-            col_name=col.get("name")
-            new_list.append(col_name)
-        new_dict[table]=new_list
-    return new_dict
+    schema_dict={}
+
+    for table_name in table_names:
+        columns_info=insp.get_columns(table_name)
+        column_names=[col["name"] for col in columns_info]
+        schema_dict[table_name]=column_names
+
+    return schema_dict
+
 
 
 
