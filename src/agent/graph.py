@@ -7,6 +7,9 @@ from src.agent.guardrail import validate_sql
 from sqlalchemy import create_engine
 from src.database.schemas import schema_table
 from src.database.db_connection import query_db
+from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.graph.message import BaseMessage, add_messages
+from langchain_core.messages import HumanMessage,AIMessage
 from pathlib import Path
 import os
 import json
@@ -41,7 +44,7 @@ def create_sql_graph():
 
     def sql_generator(state:StateSchema)->StateSchema:
         sys_inst1="""
-        You are an SQL expert. Given a schema and a natural question you will return ONLY a valid JSON object with the following keys:
+        You are an SQL expert. You have access to the conversation history and the current database schema. Given a schema and a natural question you will return ONLY a valid JSON object with the following keys:
         {{
         "sql":"The optimized SELECT SQL query — use empty string \"\" if the question cannot be answered with the schema",
         "confidence_score":"A float number between 0 to 1 regarding how confident you are if the query will work.",
@@ -49,9 +52,10 @@ def create_sql_graph():
         "is_answerable": true or false
         }}
         """
-
+        messages=state["messages"]
         prompt=ChatPromptTemplate.from_messages([
             ("system",sys_inst1),
+            *messages,
             ("human","""
             ----------Rule-----------
             1. You must only return SELECT statement
@@ -70,6 +74,15 @@ def create_sql_graph():
         
         chain=prompt | model2
         response=chain.invoke({"user_question":state["question"],"schema":state["schema"]})
+
+        if not response.is_answerable or not response.sql.strip():
+            return {
+                **state,
+                "sql":"",
+                "confidence_score":0.0,
+                "feedback":"Question cannot be answered with the schema"
+            }
+        
         try:
             validated_query = validate_sql(response.sql)
         except ValueError as e:
@@ -80,20 +93,17 @@ def create_sql_graph():
                 "feedback":f"Invalid SQL generated: {str(e)}"
             }
         
-        if not response.is_answerable or not response.sql.strip():
-            return {
-                **state,
-                "sql":"",
-                "confidence_score":0.0,
-                "feedback":"Question cannot be answered with the schema"
-            }
+
         
         return {
             **state,
             "sql":validated_query,
             "confidence_score":response.confidence_score,
-            "feedback":response.feedback
-        }
+            "feedback":response.feedback,
+            "messages":add_messages(state["messages"],
+                                    [HumanMessage(content=state["question"]),
+                                    AIMessage(content=f"Generated SQL:{validated_query}\nFeedback:{response.feedback}")])
+            }
     
     def route_after_generation(state:StateSchema):
         if state["sql"]:
@@ -102,11 +112,12 @@ def create_sql_graph():
             return END
         
     def execute_query(state:StateSchema)->StateSchema:
-        queried_rows=query_db(state["sql"],engine)
+        raw_rows = query_db(state["sql"], engine)
+        serializable_rows = [dict(row) for row in raw_rows]
 
         return {
             **state,
-            "rows":queried_rows
+            "rows":serializable_rows
         }
 
     graph=StateGraph(StateSchema)
@@ -120,18 +131,25 @@ def create_sql_graph():
     graph.add_conditional_edges('sql_generator',route_after_generation,{"execute_query":"execute_query",END:END})
     graph.add_edge('execute_query',END)
 
-    workflow=graph.compile()
+    memory=InMemorySaver()
+    workflow=graph.compile(checkpointer=memory)
 
     return workflow
 
 sql_workflow=create_sql_graph()
 
-def text_to_sql(user_question):
-    result=sql_workflow.invoke({"question":user_question})
+def text_to_sql(user_question:str,thread_id:str):
+    config = {"configurable": {"thread_id": thread_id}}
+    initial_state={
+        "question":user_question,
+        "messages":[]
+    }
+    result=sql_workflow.invoke(initial_state,config=config)
     return {
         "sql":result["sql"],
         "confidence_score":result["confidence_score"],
         "feedback":result["feedback"],
-        "rows":result.get('rows',[])
+        "rows":result.get('rows',[]),
+        "messages":result.get("messages",[])
     }
 
