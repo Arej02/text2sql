@@ -11,6 +11,7 @@ class StateSchema(TypedDict):
     confidence_score:float
     feedback:str
 
+    rows:List[dict]
     iteration:int=0
 
 
