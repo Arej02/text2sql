@@ -53,7 +53,9 @@ def convert(question:InputSchema):
     return {
         "Question":question.question,
         "SQL Query":result["sql"],
-        "Feedback":result["feedback"]
+        "Feedback":result["feedback"],
+        "Rows Count":len(result["rows"]),
+        "Rows":result["rows"]
     }
 
 
