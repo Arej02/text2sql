@@ -32,15 +32,16 @@ BASE=Path(__file__).resolve().parent.parent.parent
 FILE_PATH=BASE/"data"/"table_schema"
 
 def create_sql_graph():
-    with open(FILE_PATH,'w',encoding="utf-8") as f:
-        data=schema_table(engine)
-        json.dump(data,f,indent=2)
+    def load_schema(state: StateSchema) -> StateSchema:
+        data = schema_table(engine)
+        try:
+            with open(FILE_PATH, 'w', encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
+            print(f"Schema saved to {FILE_PATH}")
+        except Exception as e:
+            print(f"Warning: Could not save schema file: {e}")
         
-
-    def load_schema(state:StateSchema)->StateSchema:
-        return {
-            "schema":schema_table(engine)
-        }
+        return {"schema": data}
 
     def sql_generator(state:StateSchema)->StateSchema:
         sys_inst1="""

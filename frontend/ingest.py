@@ -2,18 +2,31 @@ import pandas as pd
 from pathlib import Path
 from sqlalchemy import create_engine
 import argparse
+import re
 
 BASE_PATH=Path(__file__).resolve().parent.parent
 print(BASE_PATH)
 FOLDER_PATH=BASE_PATH/"data"
 
-def normalize_file(file_name:Path):
-    return file_name.stem.lower().strip()
+def normalize_file(file_name: Path) -> str:
+    name = file_name.stem.lower().strip()
+    name = re.sub(r'[^a-z0-9_]', '_', name)      
+    name = re.sub(r'_+', '_', name)              
+    name = name.strip('_')                       
     
-def normalize_columns(df:pd.DataFrame):
-    df_copy=df.copy()
-    df_copy.columns=df_copy.columns.str.strip().str.lower().str.replace("-","_").str.replace(" ","_")
-    return df_copy
+    if not name or name[0].isdigit():
+        name = f"t_{name}"                      
+    
+    return name
+
+def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    df.columns = (
+        df.columns.str.strip()
+        .str.lower()
+        .str.replace(r'[^a-z0-9_]', '_', regex=True)
+    )
+    return df
 
 def ingest_files(folder_path:Path,database_path:Path):
     engine=create_engine(database_path)
@@ -41,7 +54,7 @@ if __name__=="__main__":
     args=parser.parse_args()
 
     folder=Path(args.folder_path)
-    ingest(folder,args.database_path)
+    ingest_files(folder,args.database_path)
 
 
     
