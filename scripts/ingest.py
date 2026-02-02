@@ -15,7 +15,7 @@ def normalize_columns(df:pd.DataFrame):
     df_copy.columns=df_copy.columns.str.strip().str.lower().str.replace("-","_").str.replace(" ","_")
     return df_copy
 
-def ingest(folder_path:Path,database_path:Path):
+def ingest_files(folder_path:Path,database_path:Path):
     engine=create_engine(database_path)
 
     if not folder_path.exists() or not folder_path.is_dir():
