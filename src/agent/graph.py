@@ -69,6 +69,10 @@ def create_sql_graph():
                 - is vague / ambiguous / off-topic
                 → MUST set "is_answerable": false, "sql": "", confidence_score low (≤ 0.2), and explain clearly in feedback
              5. Never return null for sql only use "" instead
+             6.If you use COUNT, SUM, AVG, MIN, or MAX:
+                - You MUST use parentheses, e.g. COUNT(column) or COUNT(*)
+                - COUNT column (without parentheses) is invalid
+
             Schema:{schema}
             Question:{user_question}""")
             ])
@@ -94,13 +98,12 @@ def create_sql_graph():
                 "feedback":f"Invalid SQL generated: {str(e)}"
             }
         
-
-        
         return {
             **state,
             "sql":validated_query,
             "confidence_score":response.confidence_score,
             "feedback":response.feedback,
+            "is_answerable":response.is_answerable,
             "messages":add_messages(state["messages"],
                                     [HumanMessage(content=state["question"]),
                                     AIMessage(content=f"Generated SQL:{validated_query}\nFeedback:{response.feedback}")])
@@ -114,7 +117,9 @@ def create_sql_graph():
         
     def execute_query(state:StateSchema)->StateSchema:
         raw_rows = query_db(state["sql"], engine)
-        serializable_rows = [dict(row) for row in raw_rows]
+        serializable_rows=[dict(row) for row in raw_rows]
+
+
 
         return {
             **state,
