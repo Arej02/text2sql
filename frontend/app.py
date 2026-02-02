@@ -2,9 +2,52 @@ import streamlit as st
 import requests
 import pandas as pd
 import uuid
+import os
+from pathlib import Path
+from dotenv import find_dotenv,load_dotenv
+from ingest import ingest_files
+
+API_URL = "http://127.0.0.1:8000/convert"
+DATA_PATH=Path(__file__).resolve().parent.parent/"data"
+load_dotenv(find_dotenv())
+
+key=os.getenv("DATABASE_URL")
+if not key:
+    raise ValueError("Database nnot found")
 
 st.title("Text2SQL Chat")
-API_URL = "http://127.0.0.1:8000/convert"
+st.sidebar.header("Upload Data Files")
+
+uploaded_files=st.sidebar.file_uploader(
+    "Upload CSV files (max 5)",
+    type="csv",
+    accept_multiple_files=True
+)
+
+if uploaded_files:
+    if len(uploaded_files)>5:
+        st.sidebar.error("Maximum 5 files allowed")
+    else:
+        if st.sidebar.button("Ingest Uploaded FIles"):
+            success_count=0
+            error_msg=[]
+
+            for file in uploaded_files:
+                try:
+                    save_path=DATA_PATH/file.name
+                    with open(save_path,"wb") as f:
+                        f.write(file.getbuffer())
+
+                    ingest_files(DATA_PATH,key)
+                    success_count+=1
+                except Exception as e:
+                    error_msg.append(f"{file.name}:{str(e)}")
+            
+            if success_count>0:
+                st.sidebar.success(f"Successfully ingested {success_count} files")
+
+            st.sidebar.info("You can now question about the data!")
+
 
 if "thread_id" not in st.session_state:
     st.session_state.thread_id = "chat-1"
