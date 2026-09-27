@@ -5,7 +5,7 @@ import uuid
 import os
 from pathlib import Path
 from dotenv import find_dotenv,load_dotenv
-from ingest import ingest_files
+from ingest import ingest_files, validate_uploaded_files
 
 API_URL = "http://127.0.0.1:8000/convert"
 DATA_PATH=Path(__file__).resolve().parent.parent/"data"
@@ -28,25 +28,23 @@ if uploaded_files:
     if len(uploaded_files)>5:
         st.sidebar.error("Maximum 5 files allowed")
     else:
-        if st.sidebar.button("Ingest Uploaded FIles"):
-            success_count=0
-            error_msg=[]
-
-            for file in uploaded_files:
-                try:
+        validation_errors = validate_uploaded_files(uploaded_files)
+        if validation_errors:
+            for error in validation_errors:
+                st.sidebar.error(error)
+        elif st.sidebar.button("Ingest Uploaded Files"):
+            try:
+                DATA_PATH.mkdir(parents=True, exist_ok=True)
+                for file in uploaded_files:
                     save_path=DATA_PATH/file.name
                     with open(save_path,"wb") as f:
                         f.write(file.getbuffer())
 
-                    ingest_files(DATA_PATH,key)
-                    success_count+=1
-                except Exception as e:
-                    error_msg.append(f"{file.name}:{str(e)}")
-            
-            if success_count>0:
-                st.sidebar.success(f"Successfully ingested {success_count} files")
-
-            st.sidebar.info("You can now question about the data!")
+                ingest_files(DATA_PATH,key)
+                st.sidebar.success(f"Successfully ingested {len(uploaded_files)} files")
+                st.sidebar.info("You can now question about the data!")
+            except Exception as e:
+                st.sidebar.error(f"Could not ingest uploaded files: {e}")
 
 
 if "thread_id" not in st.session_state:

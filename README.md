@@ -64,5 +64,9 @@ Set `MAX_QUERY_ROWS` to a positive integer to configure the maximum number of ro
 
 `POST /convert` responses include `Execution_Time_Ms`, the database execution-and-result-fetch duration in milliseconds. It measures the SQL query only; it does not include natural-language-to-SQL generation or other request processing. The value is `0.0` when no query is executed.
 
+### CSV upload validation
+
+Before writing or ingesting a selected batch, the frontend rejects zero-byte files, duplicate filenames in the same upload (case-insensitive), and files larger than the configured limit. Set `MAX_CSV_FILE_SIZE_MB` to a positive number to change the per-file limit; it defaults to `10` MB. Validation errors are shown beside the uploader, and no files from an invalid batch are written or ingested.
+
 
 
