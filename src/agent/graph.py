@@ -72,6 +72,7 @@ def create_sql_graph():
              6.If you use COUNT, SUM, AVG, MIN, or MAX:
                 - You MUST use parentheses, e.g. COUNT(column) or COUNT(*)
                 - COUNT column (without parentheses) is invalid
+             7. Select only the columns needed to answer the question; avoid SELECT * unless the user explicitly asks for every column.
 
             Schema:{schema}
             Question:{user_question}""")
