@@ -117,14 +117,15 @@ def create_sql_graph():
             return END
         
     def execute_query(state:StateSchema)->StateSchema:
-        raw_rows = query_db(state["sql"], engine)
+        raw_rows, execution_time_ms = query_db(state["sql"], engine)
         serializable_rows=[dict(row) for row in raw_rows]
 
 
 
         return {
             **state,
-            "rows":serializable_rows
+            "rows":serializable_rows,
+            "execution_time_ms":execution_time_ms
         }
 
     graph=StateGraph(StateSchema)
@@ -157,6 +158,7 @@ def text_to_sql(user_question:str,thread_id:str):
         "confidence_score":result["confidence_score"],
         "feedback":result["feedback"],
         "rows":result.get('rows',[]),
+        "execution_time_ms":result.get("execution_time_ms", 0.0),
         "messages":result.get("messages",[])
     }
 

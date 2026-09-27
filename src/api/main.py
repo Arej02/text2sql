@@ -66,6 +66,7 @@ def convert_question(input_data:InputSchema):
         "Feedback":result["feedback"],
         "Rows_Count":len(result["rows"]),
         "Rows":result["rows"],
+        "Execution_Time_Ms":result["execution_time_ms"],
         "Messages":formatted_messages
         }
 

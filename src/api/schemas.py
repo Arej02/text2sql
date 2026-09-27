@@ -12,4 +12,5 @@ class OutputSchema(BaseModel):
     feedback:Annotated[str,Field(...,description="Feedback in a line about the query or if the question was not understood")]
     rows_count:int
     rows:list[dict]
+    execution_time_ms:Annotated[float,Field(...,description="Database query execution time in milliseconds")]
     messages:list[dict]

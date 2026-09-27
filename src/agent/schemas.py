@@ -14,6 +14,7 @@ class StateSchema(TypedDict):
     feedback:str
 
     rows:List[dict]
+    execution_time_ms:float
     iteration:int=0
 
 
