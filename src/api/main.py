@@ -50,7 +50,7 @@ def get_schema():
     return new_dict
 
 # Convert the natural language to SQL endpoint:
-@app.post("/convert")
+@app.post("/convert", response_model=OutputSchema)
 def convert_question(input_data:InputSchema):
     
     result=text_to_sql(input_data.question,input_data.thread_id)
@@ -63,6 +63,7 @@ def convert_question(input_data:InputSchema):
     return {
         "Question":input_data.question,
         "SQL_Query":result["sql"],
+        "Confidence_Score":result["confidence_score"],
         "Feedback":result["feedback"],
         "Rows_Count":len(result["rows"]),
         "Rows":result["rows"],

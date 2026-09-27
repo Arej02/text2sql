@@ -62,7 +62,7 @@ Set `MAX_QUERY_ROWS` to a positive integer to configure the maximum number of ro
 
 ### `/convert` response
 
-`POST /convert` responses include `Execution_Time_Ms`, the database execution-and-result-fetch duration in milliseconds. It measures the SQL query only; it does not include natural-language-to-SQL generation or other request processing. The value is `0.0` when no query is executed.
+`POST /convert` responses include `Confidence_Score`, a number from `0` to `1` indicating the agent's confidence in the generated SQL, and `Execution_Time_Ms`, the database execution-and-result-fetch duration in milliseconds. Execution time measures the SQL query only; it does not include natural-language-to-SQL generation or other request processing. The value is `0.0` when no query is executed.
 
 ### CSV upload validation
 
