@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from sqlalchemy import create_engine,inspect
 from dotenv import load_dotenv,find_dotenv
 from src.api.schemas import InputSchema,OutputSchema
+from src.api.schema import create_schema_router
 from src.agent.graph import text_to_sql
 import os
 
@@ -18,6 +19,7 @@ engine=create_engine(key)
 insp=inspect(engine)
 
 app=FastAPI()
+app.include_router(create_schema_router(engine))
 
 # Home Endpoint:
 @app.get("/")
